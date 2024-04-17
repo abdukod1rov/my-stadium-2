@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.infrastructure.database.dao.rdb import UserDAO, ToDoDAO
+from app.infrastructure.database.dao.rdb import UserDAO, ToDoDAO, ProfileDAO
 from app.infrastructure.database.dao.rdb.base import BaseDAO
+from app.infrastructure.database.dao.rdb.role import RoleDAO
 
 
 class HolderDao:
@@ -10,3 +10,6 @@ class HolderDao:
         self.base = BaseDAO
         self.user = UserDAO(session=self.session)
         self.todo = ToDoDAO(session=self.session)
+        self.profile = ProfileDAO(session=self.session)
+        self.role = RoleDAO(session=self.session)
+

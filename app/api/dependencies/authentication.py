@@ -16,7 +16,7 @@ from ...infrastructure.database.models import User
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/login')
 
 
-def get_user(token: str = Depends(oauth2_scheme)) -> dto.User:
+def get_user(token: str = Depends(oauth2_scheme)) -> dto.UserOut:
     ...
 
 

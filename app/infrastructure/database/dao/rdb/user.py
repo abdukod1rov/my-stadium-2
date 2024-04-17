@@ -1,5 +1,6 @@
 from typing import Type
 
+from pydantic import parse_obj_as
 from sqlalchemy import insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,4 +39,18 @@ class UserDAO(BaseDAO[UserModel]):
         ))
         user = result.scalar()
         if user is not None:
-            return dto.UserWithPassword.from_orm(user)
+            return dto.UserOut.from_orm(user)
+
+    async def get_user_by_id(self, user_id: int):
+        result = await self.session.execute(select(UserModel).filter(
+            self.model.id == user_id
+        ))
+        user = result.scalar()
+        if user is not None:
+            return dto.UserOut.from_orm(user)
+
+    async def get_users(self):
+        result = await self.session.execute(
+            select(UserModel)
+        )
+        return parse_obj_as(list[dto.UserOut], result.scalars().all())

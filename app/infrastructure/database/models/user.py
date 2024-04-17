@@ -7,6 +7,7 @@ from sqlalchemy import String, TIMESTAMP, Integer
 from datetime import datetime
 from sqlalchemy import text
 
+from app.infrastructure.database.models.role import user_roles
 from app.infrastructure.database.models.todo import Todo
 
 
@@ -15,19 +16,15 @@ class User(BaseModel):
 
     tg_id: Mapped[int] = mapped_column(Integer, nullable=True, unique=True)
     phone_number: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
-    username: Mapped[str] = mapped_column(String(155), nullable=True, unique=True)
-    first_name: Mapped[str] = mapped_column(String(50), nullable=True)
-    last_name: Mapped[str] = mapped_column(String(50), nullable=True)
     password: Mapped[str] = mapped_column(nullable=False)
     is_active: Mapped[bool] = mapped_column(server_default='True', nullable=False)
-    email: Mapped[str] = mapped_column(String(100), nullable=True, unique=True)
+    # email: Mapped[str] = mapped_column(String(100), nullable=True, unique=True)
     last_login: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     is_superuser: Mapped[bool] = mapped_column(server_default='False', nullable=False)
     is_staff: Mapped[bool] = mapped_column(server_default='False', nullable=False)
 
-    # todos: Mapped[List['Todo']] = relationship(
-    #     back_populates='user', cascade='all, delete-orphan'
-    # )
+    # roles = relationship("UserRole", backref="user")  # One-to-Many relationship with 'UserRole'
+    roles = relationship("Role", secondary=user_roles, back_populates="users")
 
     @validates('email')
     def validate_email(self, key, email):

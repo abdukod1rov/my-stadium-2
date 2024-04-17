@@ -27,11 +27,7 @@ class User(BaseModel):
         pattern=r'^8\d{9}',
         examples=['8908211633', ]
     )
-    first_name: str
-    last_name: str
-    email: Union[EmailStr, None] = None
-    username: Union[str, None] = None
-    is_active: bool = True
+    is_active: bool = False
 
     _validate_phone_number = field_validator(__field='phone_number')(validate_phone_number)
 

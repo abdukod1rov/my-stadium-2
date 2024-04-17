@@ -12,7 +12,7 @@ class Todo(BaseModel):
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(Enum(dto.Status), nullable=False, server_default='new')
+    # status: Mapped[str] = mapped_column(Enum(dto.Status), nullable=False, server_default='new')
     user_id: Mapped[int] = mapped_column(ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     # user: Mapped['user.User'] = relationship(back_populates='todos')
 
