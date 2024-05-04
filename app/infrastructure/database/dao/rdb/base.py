@@ -2,10 +2,10 @@ from typing import (
     List,
     TypeVar,
     Type,
-    Generic
+    Generic, Any, Sequence
 )
 
-from sqlalchemy import delete, func
+from sqlalchemy import delete, func, Row, RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.strategy_options import Load
@@ -24,12 +24,12 @@ class BaseDAO(Generic[Model]):
         self.session = session
 
     async def _get_all(
-            self,
-    ) -> List[Model]:
-        result = await self.session.execute(select(self.model))
+            self, skip: int = 0, limit: int = 20
+    ):
+        result = await self.session.execute(select(self.model).offset(skip).limit(limit))
         return result.scalars().all()
 
-    async def _get_by_id(
+    async def get_by_id(
             self,
             id_: int,
             options: list[Load] = None,
@@ -38,7 +38,7 @@ class BaseDAO(Generic[Model]):
         if options:
             query = query.options(*options)
         result = await self.session.execute(query)
-        return result.scalar_one()
+        return result.scalar_one_or_none()
 
     def _save(
             self,
@@ -56,6 +56,7 @@ class BaseDAO(Generic[Model]):
             obj: Model,
     ):
         await self.session.delete(obj)
+        await self.session.commit()
 
     async def count(
             self,
@@ -70,3 +71,5 @@ class BaseDAO(Generic[Model]):
 
     async def _flush(self, *objects):
         await self.session.flush(objects)
+
+

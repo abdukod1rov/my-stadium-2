@@ -1,12 +1,12 @@
-from typing import Type
+from typing import Type, Sequence
 
-from pydantic import parse_obj_as
 from sqlalchemy import insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.dto.user import UserInCreate, UserLogin
-from app.infrastructure.database.dao.rdb.base import BaseDAO, Model
-from app.infrastructure.database.models import User as UserModel
+from app.infrastructure.database.dao.rdb import BaseDAO
+from app.infrastructure.database.models import User as UserModel, Role, User
 from app import dto
 
 
@@ -34,7 +34,10 @@ class UserDAO(BaseDAO[UserModel]):
             return dto.UserWithPassword.from_orm(user)
 
     async def get_user(self, phone_number: str):
-        result = await self.session.execute(select(UserModel).filter(
+        result = await self.session.execute(select(UserModel).options(joinedload(UserModel.roles)).options(joinedload(
+            UserModel.stadiums
+        ))
+        .filter(
             self.model.phone_number == phone_number
         ))
         user = result.scalar()
@@ -42,15 +45,56 @@ class UserDAO(BaseDAO[UserModel]):
             return dto.UserOut.from_orm(user)
 
     async def get_user_by_id(self, user_id: int):
-        result = await self.session.execute(select(UserModel).filter(
-            self.model.id == user_id
+        result = await self.session.execute(select(UserModel)
+                                            .options(joinedload(UserModel.roles))
+                                            .options(joinedload(UserModel.stadiums))
+                                            .filter(
+            UserModel.id == user_id
         ))
-        user = result.scalar()
-        if user is not None:
-            return dto.UserOut.from_orm(user)
+        return result.unique().scalar()
 
-    async def get_users(self):
+    async def get_users(self) -> Sequence[User]:
         result = await self.session.execute(
             select(UserModel)
         )
-        return parse_obj_as(list[dto.UserOut], result.scalars().all())
+        # roles_result = await self.session.execute(
+        #     select(UserModel)
+        # )
+        # print('result: ', roles_result.scalars().all())
+        # users = result.scalars().all()
+        # print(users)
+        return result.scalars().all()
+
+    async def assign_role(self, user_id: int, role_name: str):
+        role = await self.get_role_by_name(role_name)
+        user = await self.get_user_by_id(user_id)
+
+        if role is not None and user is not None:
+            from app.infrastructure.database.models import UserRole
+            existing_association = await self.session.execute(
+                select(UserRole).filter(UserRole.user_id == user.id, UserRole.role_id == role.id))
+            result = existing_association.scalar_one_or_none()
+            if result is None:
+                print('no association found')
+                # Create a new association record
+                association = insert(UserRole).values(user_id=user.id, role_id=role.id)
+                print(association)
+                result2 = await self.session.execute(association)
+                await self.session.flush()
+                await self.session.commit()
+                return {"message": f"Role {role.name} assigned to {user.phone_number} successfully" }
+            else:
+                return {'error': 'already assigned'}
+        return {"message": "Role not found"}
+
+    async def get_role_by_name(self, role_name: str):
+        result = await self.session.execute(select(Role).filter(
+            Role.name == role_name))
+        return result.scalar_one_or_none()
+
+    async def remove_role(self, user_id: int, role: Role):
+        result = await self.session.execute(
+            text(f"DELETE FROM user_roles WHERE user_id={user_id} AND role_id={role.id}")
+        )
+        await self.session.commit()
+        return result

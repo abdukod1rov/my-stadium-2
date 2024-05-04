@@ -1,11 +1,11 @@
-from typing import Union
+from typing import Union, Sequence
 
 from pydantic import parse_obj_as
 from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.dao.rdb.base import BaseDAO
-from app.infrastructure.database.models import Role as RoleModel
+from app.infrastructure.database.models import Role as RoleModel, Role, User
 from app import dto
 
 
@@ -38,11 +38,19 @@ class RoleDAO(BaseDAO[RoleModel]):
             return dto.RoleOut.from_orm(role)
         return None
 
-    async def get_roles(self) -> list[dto.RoleOut]:
+    async def get_roles(self) -> Sequence[Role]:
         result = await self.session.execute(
             select(RoleModel)
         )
-        return parse_obj_as(list[dto.RoleOut], result.scalars().all())
+        roles = result.scalars().all()
+        # join_condition = RoleModel.users.join(user_role_associate_table)
+        # # Use the join condition in the select statement
+        # query = select(RoleModel).join(join_condition)
+        #
+        # result2 = await self.session.execute(query)
+        # roles2 = result.scalars().all()
+        # print(roles2)
+        return roles
 
     async def edit_role(self, role_data: dto.RoleEdit, role_id: int):
         description = role_data.description if role_data.description else None

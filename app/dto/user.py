@@ -1,8 +1,9 @@
-from typing import Union
+from typing import Union, List
 import re
 from pydantic import field_validator, Field, EmailStr, BaseModel
 from app import dto
 from . import base
+from .role import Role, RoleOut, RoleForUser
 from datetime import datetime
 
 
@@ -46,6 +47,7 @@ class UserOut(User):
     is_staff: bool
     is_superuser: bool
     last_login: Union[datetime, None] = None
+    roles: Union[List[RoleForUser], None] = None
 
 
 class UserWithPassword(User):
@@ -66,3 +68,7 @@ class UserLogin(BaseModel):
     password: str
 
     _validate_phone_number = field_validator(__field='phone_number')(validate_phone_number)
+
+
+class UserWithRoles(User):
+    roles: List[Role]

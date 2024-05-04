@@ -1,6 +1,41 @@
+"""_User endpoints_
+    Completed routers
+    1./register
+    2./login
+    3./get-user {phone_number}
+    4./get-profile
+    5./edit-profile
+    6./me
+    7./upload-photo
+    8./create-role
+    9./get-roles
+    10./edit-role
+    11./assign-role
+
+    
+    <-- Waiting to be completed -->
+    1. /delete-user
+    2./delete-profile
+    3./delete-role
+    4./delete-roles
+    
+    
+    Raises:
+        http_status_401: _description_
+        HTTPException: _description_
+        HTTPException: _description_
+        HTTPException: _description_
+
+    Returns:
+        _type_: _description_
+"""
+
 import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
-from app.api.dependencies import dao_provider, get_settings, AuthProvider, get_user
+from sqlalchemy.exc import IntegrityError
+
+from app.api.dependencies import dao_provider, get_settings, AuthProvider, get_current_user
+from app.dto import UserOut
 from app.infrastructure.database.dao.holder import HolderDao
 from app import dto
 from app.config import Settings
@@ -15,12 +50,21 @@ router = APIRouter(
 )
 
 
+@router.get(
+    path="/profile-photo"
+)
+async def get_profile_photo(
+        user: dto.user = Depends(get_current_user),
+        dao: HolderDao = Depends(dao_provider)
+):
+    ...
+
+
 @router.post('/upload')
 async def upload_file(file: UploadFile,
                       dao: HolderDao = Depends(dao_provider),
-                      user: dto.user = Depends(get_user),
+                      user: dto.user = Depends(get_current_user),
                       ):
-    user_obj = await user
     media_path = os.path.join(BASE_DIR / 'media/avatars')
     print(media_path)
     filename = file.filename
@@ -31,7 +75,7 @@ async def upload_file(file: UploadFile,
     async with aiofiles.open(f'{filepath}', 'wb') as out_file:
         content = await file.read()
         await out_file.write(content)
-    profile = await dao.profile.edit_photo(user_id=user_obj.id, photo_path=db_photo_path)
+    profile = await dao.profile.edit_photo(user_id=user.id, photo_path=db_photo_path)
     return {'filename': file.filename, 'saved': filepath, 'profile': profile}
 
 
@@ -67,7 +111,7 @@ async def create_user(
         dao: HolderDao = Depends(dao_provider),
 ):
     auth = AuthProvider(settings)
-    user = await dao.user.get_user(user_data.phone_number)
+    user = await dao.user.get_current_user(user_data.phone_number)
     if user is not None:
         raise HTTPException(
             status_code=400,
@@ -77,8 +121,8 @@ async def create_user(
         hashed_password = auth.get_password_hash(user_data.password)
         user_data.password = hashed_password
         new_user = await dao.user.add_user(user_data=user_data)
-        profile = await dao.profile.get_profile(new_user.id)
-        if not profile:
+        profile = await dao.profile.get_by_id(new_user.id)
+        if profile is None:
             print(f'no profile for {new_user.phone_number}\ncreating profile')
             user_profile = await dao.profile.create_profile(user_id=new_user.id)
         return new_user
@@ -90,21 +134,38 @@ async def create_user(
 
 
 @router.get(path='/me', description='Get current user')
-async def get_current_user(
-        user: dto.user = Depends(get_user)
+async def get_me(
+        user: dto.user = Depends(get_current_user),
+        dao: HolderDao = Depends(dao_provider)
 ):
-    return await user
+    user = await dao.user.get_user_by_id(user.id)
+    print(user.id)
+    return user
 
 
 @router.get(
     path='/all',
     description='Get all users')
 async def get_users(
-        user: dto.user = Depends(get_user),
         dao: HolderDao = Depends(dao_provider)
-)-> list[dto.UserOut]:
+):
     users = await dao.user.get_users()
+    # for user in users:
+    #     print(user.roles)
     return users
+
+
+@router.delete(
+    path="/delete",
+    description="Delete user"
+)
+async def delete_user(
+        dao: HolderDao = Depends(dao_provider),
+        user: dto.user = Depends(get_current_user)
+):
+    user_from_db = await dao.user.get_by_id(user.id)
+    await dao.user.delete(user_from_db)
+    return 'OK'
 
 
 @router.patch(
@@ -113,22 +174,23 @@ async def get_users(
 )
 async def edit_profile(
         profile_data: dto.ProfileBase,
-        user: dto.user = Depends(get_user),
+        user: dto.user = Depends(get_current_user),
         dao: HolderDao = Depends(dao_provider),
 ):
-    user_object = await user
-    profile = await dao.profile.edit_profile(user_object.id, profile_data)
+    profile = await dao.profile.edit_profile(user.id, profile_data)
     return profile
 
 
 @router.get(
     path='/profile',
-    description='Get user profile')
+    description='Get user profile',
+    response_model=dto.ProfileOut)
 async def get_profile(
-        user: dto.user = Depends(get_user),
+        user: dto.user = Depends(get_current_user),
         dao: HolderDao = Depends(dao_provider)):
-    user_object = await user
-    profile = await dao.profile.get_profile(user_object.id) or await dao.profile.create_profile(user_object.id)
+    profile = await dao.profile.get_profile_by_user(user.id) or await dao.profile.create_profile(user.id)
+    print(profile.user.phone_number)
+    print(profile.user.is_active)
     return profile
 
 
@@ -136,9 +198,9 @@ async def get_profile(
     path='/roles',
     description='Get all roles')
 async def get_roles(
-        user: dto.user = Depends(get_user),
+        # user: dto.user = Depends(get_user),
         dao: HolderDao = Depends(dao_provider)
-):
+) -> list[dto.RoleOut]:
     roles = await dao.role.get_roles()
     return roles
 
@@ -150,7 +212,7 @@ async def get_roles(
 )
 async def create_role(
         role_data: dto.RoleCreate,
-        user: dto.user = Depends(get_user),
+        user: dto.user = Depends(get_current_user),
         dao: HolderDao = Depends(dao_provider)
 ):
     existing_role = await dao.role.get_role_by_name(role_data.name)
@@ -170,8 +232,28 @@ async def create_role(
 async def edit_role(
         role_id: int,
         role_data: dto.RoleEdit,
-        user: dto.user = Depends(get_user),
+        user: dto.user = Depends(get_current_user),
         dao: HolderDao = Depends(dao_provider)
 ):
     role = await dao.role.edit_role(role_data, role_id)
     return role
+
+
+from pydantic import BaseModel
+
+
+class Role(BaseModel):
+    role_name: str
+
+
+@router.post(
+    path="/{user_id}/assign-role",
+    description="Assign role to the user"
+)
+async def assign_role(
+        user_id: int,
+        role: Role,
+        # user: dto.User = Depends(get_user),
+        dao: HolderDao = Depends(dao_provider)
+):
+    return await dao.user.assign_role(user_id, role.role_name)

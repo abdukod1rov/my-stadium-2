@@ -29,3 +29,4 @@ def main() -> FastAPI:
     dependencies.setup(app, pool, settings)
     return app
 
+

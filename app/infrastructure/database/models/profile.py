@@ -7,7 +7,7 @@ from app.infrastructure.database.models.base import BaseModel
 class UserProfile(BaseModel):
     __tablename__ = 'user_profile'
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     username: Mapped[str] = mapped_column(String(255), nullable=True, unique=True)
     first_name: Mapped[str] = mapped_column(String(155), nullable=True)
     last_name: Mapped[str] = mapped_column(String(155), nullable=True)

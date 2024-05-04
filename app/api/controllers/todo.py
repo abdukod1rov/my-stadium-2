@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import dto
-from app.api.dependencies import get_user, dao_provider
+from app.api.dependencies import get_current_user, dao_provider
 from app.infrastructure.database.dao.holder import HolderDao
 
 router = APIRouter(prefix="/todo")
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/todo")
     description="Get all todos"
 )
 async def get_todos(
-        user: dto.user = Depends(get_user),
+        user: dto.user = Depends(get_current_user),
         dao: HolderDao = Depends(dao_provider)
 ) -> list[dto.Todo]:
     user_object = await user  # Await the user dependency to get the user object
@@ -25,7 +25,7 @@ async def get_todos(
 )
 async def new_todo(
         todo_data: dto.TodoCreate,
-        user: dto.user = Depends(get_user),
+        user: dto.user = Depends(get_current_user),
         dao: HolderDao = Depends(dao_provider),
 ) -> dto.Todo:
     user_object = await user
@@ -44,7 +44,7 @@ async def new_todo(
 )
 async def edit_todo(
         todo_data: dto.TodoEdit,
-        user: dto.user = Depends(get_user),
+        user: dto.user = Depends(get_current_user),
         dao: HolderDao = Depends(dao_provider),
 ) -> dto.Todo:
     user_object = await user
