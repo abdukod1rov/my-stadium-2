@@ -25,9 +25,8 @@ class RoleDAO(BaseDAO[RoleModel]):
         result = await self.session.execute(select(RoleModel).filter(
             RoleModel.id == role_id
         ))
-        role = result.scalar()
-        if role is not None:
-            return dto.RoleOut.from_orm(role)
+        role = result.scalar_one_or_none()
+        return role
 
     async def get_role_by_name(self, name: str) -> Union[dto.RoleOut, None]:
         result = await self.session.execute(
