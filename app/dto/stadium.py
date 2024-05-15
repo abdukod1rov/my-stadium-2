@@ -8,6 +8,15 @@ def serialize_time(value: datetime) -> str:
     return value.strftime('%d.%m.%Y %H:%M')
 
 
+class FacilityCreate(BaseModel):
+    name: str
+    description: Union[str, None] = None
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
 class StadiumBase(BaseModel):
     name: str
     city: str
@@ -19,6 +28,16 @@ class StadiumBase(BaseModel):
         }
         from_attributes = True
         orm_mode = True
+        populate_by_name = True
+
+
+class StadiumWithPriceAndRating(BaseModel):
+    id: int
+    price: float
+    rating: float
+
+    class Config:
+        from_attributes = True
         populate_by_name = True
 
 
@@ -45,4 +64,5 @@ class UpdateStadium(BaseModel):
     time_end: Union[str, None] = None
     name: Union[str, None] = None
     status: Union[str, None] = None
-
+    rating: Union[float, None] = None
+    image: Union[None, str] = None

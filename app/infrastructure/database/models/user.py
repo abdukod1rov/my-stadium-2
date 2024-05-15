@@ -48,3 +48,6 @@ class User(BaseModel):
 
     def __repr__(self):
         return f'User(id={self.id!r}, phone={self.phone_number!r}, roles: {self.roles})'
+
+
+

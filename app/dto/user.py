@@ -60,15 +60,20 @@ class UserInCreate(User):
 
 
 class UserLogin(BaseModel):
-    phone_number: str = Field(
+    username: str = Field(
+        field_name='phone_number',
         description='User telefon raqami. Unique bo\'lish kerak',
         pattern=r'^8\d{9}',
         examples=['8908211633', ]
     )
     password: str
 
-    _validate_phone_number = field_validator(__field='phone_number')(validate_phone_number)
+    _validate_phone_number = field_validator(__field='username')(validate_phone_number)
 
 
 class UserWithRoles(User):
     roles: List[Role]
+
+
+class TgLogin(BaseModel):
+    passcode: int

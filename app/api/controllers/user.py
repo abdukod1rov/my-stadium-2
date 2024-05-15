@@ -29,9 +29,11 @@
     Returns:
         _type_: _description_
 """
+from typing import Annotated
 
 import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBasic, HTTPBasicCredentials, OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import dao_provider, get_settings, AuthProvider, get_current_user
@@ -41,7 +43,8 @@ from app import dto
 from app.config import Settings
 
 import os
-from app.api.dependencies.settings import BASE_DIR
+from app.api.dependencies.settings import BASE_DIR, get_redis_connection
+from redis import asyncio as redis_asyncio
 
 # TODO 1. Save user profile image in the local directory
 
@@ -58,6 +61,24 @@ async def get_profile_photo(
         dao: HolderDao = Depends(dao_provider)
 ):
     ...
+
+
+@router.post("/token")
+async def login_for_access_token(
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+        dao: HolderDao = Depends(dao_provider),
+        settings: Settings = Depends(get_settings)
+):
+    http_status_401 = HTTPException(
+        status_code=401,
+        detail='incorrect phone_number or password'
+    )
+    auth = AuthProvider(settings=settings)
+    user = await auth.authenticate_user(form_data, dao)
+    if not user:
+        raise http_status_401
+    token = auth.create_user_token(user)
+    return token
 
 
 @router.post('/upload')
@@ -101,9 +122,35 @@ async def login(
 
 
 @router.post(
+    path="/tg-login",
+    description="Login user via telegram passcode"
+)
+async def tg_login(
+        login_data: dto.TgLogin,
+        redis_conn: redis_asyncio.Redis = Depends(get_redis_connection),
+        dao: HolderDao = Depends(dao_provider),
+        settings: Settings = Depends(get_settings),
+
+):
+    auth = AuthProvider(settings=settings)
+    http_status_401 = HTTPException(
+        status_code=401,
+        detail='invalid passcode'
+    )
+    # Perform a lookup to get the user ID associated with the passcode
+    stored_user_id = await redis_conn.get(str(login_data.passcode))
+    if not stored_user_id:
+        raise http_status_401
+    user = await dao.user.get_user_by_tg_id(int(stored_user_id))
+    if user is not None:
+        token = auth.create_user_token(user)
+        return {'token': token, 'user': user}
+
+
+@router.post(
     path='/register',
     description='Register user',
-    status_code=201
+    status_code=201,
 )
 async def create_user(
         user_data: dto.UserInCreate,
@@ -111,7 +158,7 @@ async def create_user(
         dao: HolderDao = Depends(dao_provider),
 ):
     auth = AuthProvider(settings)
-    user = await dao.user.get_current_user(user_data.phone_number)
+    user = await dao.user.get_user(user_data.phone_number)
     if user is not None:
         raise HTTPException(
             status_code=400,
@@ -123,7 +170,7 @@ async def create_user(
         new_user = await dao.user.add_user(user_data=user_data)
         profile = await dao.profile.get_by_id(new_user.id)
         if profile is None:
-            print(f'no profile for {new_user.phone_number}\ncreating profile')
+            # print(f'no profile for {new_user}\ncreating profile')
             user_profile = await dao.profile.create_profile(user_id=new_user.id)
         return new_user
     except ValueError as err:

@@ -6,14 +6,14 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from starlette import status
-
+from redis import asyncio
 from app import dto
 from .database import dao_provider
 from app.infrastructure.database.dao.holder import HolderDao
 from app.config import Settings
 from ...infrastructure.database.models import User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/login')
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='user/token')
 
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> dto.UserOut:
@@ -57,7 +57,7 @@ class AuthProvider:
         )
 
     async def authenticate_user(self,
-                                login_data: dto.UserLogin,
+                                login_data,
                                 dao: HolderDao) -> Union[dto.User, bool]:
 
         user = await dao.user.get_user_with_password(user_data=login_data)
@@ -89,3 +89,5 @@ class AuthProvider:
         if user is None:
             raise credentials_exception
         return user
+
+

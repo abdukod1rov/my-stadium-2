@@ -5,7 +5,7 @@ from typing import (
     Generic, Any, Sequence
 )
 
-from sqlalchemy import delete, func, Row, RowMapping
+from sqlalchemy import delete, func, Row, RowMapping, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.strategy_options import Load
@@ -26,7 +26,8 @@ class BaseDAO(Generic[Model]):
     async def _get_all(
             self, skip: int = 0, limit: int = 20
     ):
-        result = await self.session.execute(select(self.model).offset(skip).limit(limit))
+        result = await self.session.execute(select(self.model).offset(skip).limit(limit)
+                                            .order_by(text('id')))
         return result.scalars().all()
 
     async def get_by_id(

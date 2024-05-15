@@ -22,16 +22,13 @@ class UserDAO(BaseDAO[UserModel]):
                                                                      ).returning(UserModel))
         await self.session.commit()
         await self.session.flush()
-        return dto.UserOut.from_orm(result.scalar())
+        return result.scalar()
 
     async def get_user_with_password(self, user_data: UserLogin) -> dto.User:
-        user_dict = user_data.model_dump()
         result = await self.session.execute(select(UserModel).filter(
-            UserModel.phone_number == user_dict.get('phone_number')
+            UserModel.phone_number == user_data.username
         ))
-        user = result.scalar()
-        if user is not None:
-            return dto.UserWithPassword.from_orm(user)
+        return result.scalar_one_or_none()
 
     async def get_user(self, phone_number: str):
         result = await self.session.execute(select(UserModel).options(joinedload(UserModel.roles)).options(joinedload(
@@ -44,11 +41,17 @@ class UserDAO(BaseDAO[UserModel]):
         if user is not None:
             return dto.UserOut.from_orm(user)
 
+    async def get_user_by_tg_id(self, tg_id: int):
+        result = await self.session.execute(select(UserModel).filter(
+            UserModel.tg_id == tg_id
+        ))
+        return result.scalar_one_or_none()
+
     async def get_user_by_id(self, user_id: int):
         result = await self.session.execute(select(UserModel)
-                                            .options(joinedload(UserModel.roles))
-                                            .options(joinedload(UserModel.stadiums))
-                                            .filter(
+        .options(joinedload(UserModel.roles))
+        .options(joinedload(UserModel.stadiums))
+        .filter(
             UserModel.id == user_id
         ))
         return result.unique().scalar()
@@ -82,7 +85,7 @@ class UserDAO(BaseDAO[UserModel]):
                 result2 = await self.session.execute(association)
                 await self.session.flush()
                 await self.session.commit()
-                return {"message": f"Role {role.name} assigned to {user.phone_number} successfully" }
+                return {"message": f"Role {role.name} assigned to {user.phone_number} successfully"}
             else:
                 return {'error': 'already assigned'}
         return {"message": "Role not found"}

@@ -9,10 +9,10 @@ def setup(app: FastAPI) -> None:
         router=authentication_router,
         tags=["Authentication"]
     )
-    app.include_router(
-        router=todo_router,
-        tags=['ToDo']
-    )
+    # app.include_router(
+    #     router=todo_router,
+    #     tags=['ToDo']
+    # )
     app.include_router(
         router=stadium_router,
         tags=['Stadium']
