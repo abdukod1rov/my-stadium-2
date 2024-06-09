@@ -15,7 +15,7 @@ class User(BaseModel):
 
     tg_id: Mapped[int] = mapped_column(Integer, nullable=True, unique=True)
     phone_number: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
-    password: Mapped[str] = mapped_column(nullable=False)
+    password: Mapped[str] = mapped_column(nullable=True)
     is_active: Mapped[bool] = mapped_column(server_default=text('true'), nullable=False)
     # email: Mapped[str] = mapped_column(String(100), nullable=True, unique=True)
     last_login: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
@@ -48,6 +48,3 @@ class User(BaseModel):
 
     def __repr__(self):
         return f'User(id={self.id!r}, phone={self.phone_number!r}, roles: {self.roles})'
-
-
-

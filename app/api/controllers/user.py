@@ -130,7 +130,6 @@ async def tg_login(
         redis_conn: redis_asyncio.Redis = Depends(get_redis_connection),
         dao: HolderDao = Depends(dao_provider),
         settings: Settings = Depends(get_settings),
-
 ):
     auth = AuthProvider(settings=settings)
     http_status_401 = HTTPException(

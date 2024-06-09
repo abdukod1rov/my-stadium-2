@@ -46,6 +46,8 @@ class Stadium(BaseModel):
     time_end = Column(String(80), nullable=False)      # need to change to TIME
     status = Column(String(25), nullable=True)
     type = Column(String(25), nullable=True)
+    lat = Column(String(100), nullable=True)
+    long = Column(String(100), nullable=True)
     image = Column(String(255), nullable=True)
 
     owner = Relationship('User', back_populates='stadiums')

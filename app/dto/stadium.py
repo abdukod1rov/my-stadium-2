@@ -66,3 +66,5 @@ class UpdateStadium(BaseModel):
     status: Union[str, None] = None
     rating: Union[float, None] = None
     image: Union[None, str] = None
+    lat: Union[str, None] = None
+    long: Union[str, None] = None
