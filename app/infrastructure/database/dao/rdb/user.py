@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload
 
 from app.dto.user import UserInCreate, UserLogin
 from app.infrastructure.database.dao.rdb import BaseDAO
-from app.infrastructure.database.models import User as UserModel, Role, User
+from app.infrastructure.database.models import User as UserModel, Role, User, UserProfile
 from app import dto
 
 
@@ -30,16 +30,21 @@ class UserDAO(BaseDAO[UserModel]):
         ))
         return result.scalar_one_or_none()
 
-    async def get_user(self, phone_number: str):
+    async def get_user_with_stadiums(self, phone_number: str):
         result = await self.session.execute(select(UserModel).options(joinedload(UserModel.roles)).options(joinedload(
             UserModel.stadiums
-        ))
-        .filter(
+        )).filter(
             self.model.phone_number == phone_number
         ))
         user = result.scalar()
         if user is not None:
             return dto.UserOut.from_orm(user)
+
+    async def get_user(self, phone_number: str):
+        result = await self.session.execute(select(UserModel).filter(
+            self.model.phone_number == phone_number
+        ))
+        return result.scalar_one_or_none()
 
     async def get_user_by_tg_id(self, tg_id: int):
         result = await self.session.execute(select(UserModel).filter(
@@ -101,3 +106,7 @@ class UserDAO(BaseDAO[UserModel]):
         )
         await self.session.commit()
         return result
+
+    async def get_profile_by_user_id(self, user_id: int):
+        result = await self.session.execute(select(UserProfile).filter(UserProfile.user_id == user_id))
+        return result.scalar_one_or_none()

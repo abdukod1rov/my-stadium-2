@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from .user import router as authentication_router
-from .todo import router as todo_router
 from .stadium import router as stadium_router
 
 

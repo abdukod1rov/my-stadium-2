@@ -1,8 +1,6 @@
 from typing import Union, List
 import re
 from pydantic import field_validator, Field, EmailStr, BaseModel
-from app import dto
-from . import base
 from .role import Role, RoleOut, RoleForUser
 from datetime import datetime
 
@@ -28,7 +26,7 @@ class User(BaseModel):
         pattern=r'^8\d{9}',
         examples=['8908211633', ]
     )
-    is_active: bool = False
+    is_active: bool = True
 
     _validate_phone_number = field_validator(__field='phone_number')(validate_phone_number)
 
@@ -42,11 +40,11 @@ class User(BaseModel):
 
 
 class UserOut(User):
-    id: int = Field(frozen=True)  # immutable
-    is_active: bool  # 3 dots means it is required
+    username: Union[str, None] = None
+    first_name: Union[str, None] = None
+    last_name: Union[str, None] = None
     is_staff: bool
     is_superuser: bool
-    last_login: Union[datetime, None] = None
     roles: Union[List[RoleForUser], None] = None
 
 
@@ -77,3 +75,5 @@ class UserWithRoles(User):
 
 class TgLogin(BaseModel):
     passcode: int
+
+

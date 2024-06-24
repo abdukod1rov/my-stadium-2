@@ -131,6 +131,11 @@ async def tg_login(
         dao: HolderDao = Depends(dao_provider),
         settings: Settings = Depends(get_settings),
 ):
+    """
+    @return:
+    phone_number,
+    first_name|last_name|username
+    """
     auth = AuthProvider(settings=settings)
     http_status_401 = HTTPException(
         status_code=401,
@@ -143,7 +148,12 @@ async def tg_login(
     user = await dao.user.get_user_by_tg_id(int(stored_user_id))
     if user is not None:
         token = auth.create_user_token(user)
-        return {'token': token, 'user': user}
+        user_profile = await dao.user.get_profile_by_user_id(user.id)
+        user_out = UserOut(phone_number=user.phone_number, first_name=user_profile.first_name,
+                           last_name=user_profile.last_name, username=user_profile.username,
+                           is_active=user.is_active, is_staff=user.is_staff, is_superuser=user.is_superuser)
+        return {'token': token, 'user': user_out}
+    return http_status_401
 
 
 @router.post(

@@ -12,7 +12,7 @@ def get_settings() -> Settings:
 
 async def get_redis_connection() -> asyncio.Redis:
     try:
-        r = asyncio.Redis(host='localhost', port=6379, decode_responses=True, db=1)
+        r = asyncio.Redis(host='143.110.221.124', port=6379, decode_responses=True, db=1)
     except asyncio.connection.ConnectionError as err:
         raise Exception(str(err))
     return r
