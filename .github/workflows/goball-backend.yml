@@ -22,8 +22,8 @@ jobs:
           echo "DB__PASSWORD=goball771" >> .env
           echo "API__SECRET=147f004715fc46ce91f9360329d88e3c" >> .env
 
-      - name: Restart systemd service
-        run: sudo systemctl restart goball-backend
+      # - name: Restart systemd service
+      #   run: sudo systemctl restart goball-backend
 
         
 
