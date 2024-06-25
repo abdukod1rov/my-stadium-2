@@ -1,0 +1,31 @@
+name: FastAPI demo
+
+on:
+  push:
+    branches: [ "dev" ]
+jobs:
+  build:
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+      - name: Add necessary .env content
+        run: |
+          echo "DB__HOST=143.110.221.124" >> .env
+          echo "DB__PORT=5432" >> .env
+          echo "DB__NAME=goball" >> .env
+          echo "DB__USER=postgres" >> .env
+          echo "DB__PASSWORD=goball771" >> .env
+          echo "API__SECRET=147f004715fc46ce91f9360329d88e3c" >> .env
+
+      - name: Restart systemd service
+        run: sudo systemctl restart goball-backend
+
+        
+
+        
+      
