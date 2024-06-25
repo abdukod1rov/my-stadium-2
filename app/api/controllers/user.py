@@ -48,6 +48,7 @@ from redis import asyncio as redis_asyncio
 
 # TODO 1. Save user profile image in the local directory
 
+# FOR ACTIONS RUNNER
 router = APIRouter(
     prefix='/user'
 )
