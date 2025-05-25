@@ -1,8 +1,30 @@
-from typing import Union, List
+from typing import Union, List, Optional
 import re
 from pydantic import field_validator, Field, EmailStr, BaseModel
 from .role import Role, RoleOut, RoleForUser
 from datetime import datetime
+
+from ..infrastructure.database.models.user import UserRole
+
+
+class UserBase(BaseModel):
+    username : str
+    phone_number: Union[str] = None
+
+
+class UserCreate(UserBase):
+    password: str
+    role: UserRole = UserRole.CLIENT
+
+
+class UserResponse(UserBase):
+    id: int
+    role: UserRole
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 def serialize_time(value: datetime) -> str:
@@ -28,7 +50,7 @@ class User(BaseModel):
     )
     is_active: bool = True
 
-    _validate_phone_number = field_validator(__field='phone_number')(validate_phone_number)
+    # _validate_phone_number = field_validator(validate_phone_number)
 
     class Config:
         json_encoders = {
@@ -57,16 +79,6 @@ class UserInCreate(User):
     password: str
 
 
-class UserLogin(BaseModel):
-    username: str = Field(
-        field_name='phone_number',
-        description='User telefon raqami. Unique bo\'lish kerak',
-        pattern=r'^8\d{9}',
-        examples=['8908211633', ]
-    )
-    password: str
-
-    _validate_phone_number = field_validator(__field='username')(validate_phone_number)
 
 
 class UserWithRoles(User):
@@ -74,6 +86,6 @@ class UserWithRoles(User):
 
 
 class TgLogin(BaseModel):
-    passcode: int
+    passcode: str
 
 

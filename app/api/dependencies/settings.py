@@ -12,11 +12,12 @@ def get_settings() -> Settings:
 
 async def get_redis_connection() -> asyncio.Redis:
     try:
-        r = asyncio.Redis(host='143.110.221.124', port=6379, decode_responses=True, db=1)
+        r = asyncio.Redis(host='164.92.93.98', port=6379,
+                          decode_responses=True, db=1,
+                          password="your_secure_redis_password")
     except asyncio.connection.ConnectionError as err:
         raise Exception(str(err))
     return r
 
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

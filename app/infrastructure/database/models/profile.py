@@ -14,4 +14,4 @@ class UserProfile(BaseModel):
     bio: Mapped[str] = mapped_column(Text, nullable=True)
     photo = Column(String(255), nullable=True)
 
-    user = relationship('User', backref='profile')
+    # user = relationship('User', backref='profile')

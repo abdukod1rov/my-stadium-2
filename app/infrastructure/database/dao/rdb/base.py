@@ -1,3 +1,4 @@
+import logging
 from typing import (
     List,
     TypeVar,
@@ -5,7 +6,9 @@ from typing import (
     Generic, Any, Sequence
 )
 
+from fastapi import HTTPException
 from sqlalchemy import delete, func, Row, RowMapping, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.strategy_options import Load
@@ -13,51 +16,45 @@ from app.infrastructure.database.models import Base
 
 Model = TypeVar("Model", Base, Base)
 
+logger = logging.getLogger(__name__)
 
 class BaseDAO(Generic[Model]):
-    def __init__(
-            self,
-            model: Type[Model],
-            session: AsyncSession,
-    ):
+
+    def __init__(self, model, session: AsyncSession):
         self.model = model
         self.session = session
 
-    async def _get_all(
-            self, skip: int = 0, limit: int = 20
-    ):
-        result = await self.session.execute(select(self.model).offset(skip).limit(limit)
-                                            .order_by(text('id')))
-        return result.scalars().all()
+    async def _get_all(self, skip: int = 0, limit: int = 10):
+        try:
+            result = await self.session.execute(
+                select(self.model).offset(skip).limit(limit)
+            )
+            return result.scalars().all()
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to get all {self.model.__name__}: {e}")
+            raise HTTPException(status_code=500, detail="Database error occurred")
 
-    async def get_by_id(
-            self,
-            id_: int,
-            options: list[Load] = None,
-    ) -> Model:
-        query = select(self.model).where(self.model.id == id_)
-        if options:
-            query = query.options(*options)
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
+    async def _get_by_id(self, id: int):
+        try:
+            result = await self.session.execute(
+                select(self.model).where(self.model.id == id)
+            )
+            return result.scalar_one_or_none()
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to get {self.model.__name__} by id: {e}")
+            raise HTTPException(status_code=500, detail="Database error occurred")
 
-    def _save(
-            self,
-            obj: Model,
-    ):
-        self.session.add(obj)
-
-    async def delete_all(
-            self,
-    ):
-        await self.session.execute(delete(self.model))
-
-    async def _delete(
-            self,
-            obj: Model,
-    ):
-        await self.session.delete(obj)
-        await self.session.commit()
+    async def _delete(self, id: int):
+        try:
+            result = await self.session.execute(
+                delete(self.model).where(self.model.id == id)
+            )
+            await self.session.commit()
+            return result.rowcount > 0
+        except SQLAlchemyError as e:
+            await self.session.rollback()
+            logger.error(f"Failed to delete {self.model.__name__}: {e}")
+            raise HTTPException(status_code=500, detail="Failed to delete record")
 
     async def count(
             self,

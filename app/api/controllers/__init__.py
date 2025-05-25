@@ -1,17 +1,23 @@
 from fastapi import FastAPI
-from .user import router as authentication_router
-from .stadium import router as stadium_router
+from .user import router as user_router
+from .stadium import stadium_router
+from .booking import booking_router
+from .auth import router as auth_router
 
 
 def setup(app: FastAPI) -> None:
     app.include_router(
-        router=authentication_router,
-        tags=["Authentication"]
+        router=auth_router,
+        tags=['Authentication']
     )
-    # app.include_router(
-    #     router=todo_router,
-    #     tags=['ToDo']
-    # )
+    app.include_router(
+        router=user_router,
+        tags=["Users"]
+    )
+    app.include_router(
+       router=booking_router,
+       tags=["Booking"]
+   )
     app.include_router(
         router=stadium_router,
         tags=['Stadium']

@@ -11,7 +11,7 @@ from app import dto
 from .database import dao_provider
 from app.infrastructure.database.dao.holder import HolderDao
 from app.config import Settings
-from ...infrastructure.database.models import User
+from ...infrastructure.database.models import UserModel
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='user/token')
 
