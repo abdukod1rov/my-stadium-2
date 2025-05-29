@@ -45,12 +45,10 @@ def validate_phone_number(phone_number: str) -> str:
 class User(BaseModel):
     phone_number: str = Field(
         description='User telefon raqami. Unique bo\'lish kerak',
-        pattern=r'^8\d{9}',
         examples=['8908211633', ]
     )
     is_active: bool = True
 
-    # _validate_phone_number = field_validator(validate_phone_number)
 
     class Config:
         json_encoders = {

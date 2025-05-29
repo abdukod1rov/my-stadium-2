@@ -3,7 +3,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from app.dto import UserOut
+from app.dto import UserOut, UserResponse
 from app.dto.stadium import StadiumOut
 
 
@@ -15,7 +15,7 @@ class StadiumAdminRequest(BaseModel):
 class StadiumAdminResponse(BaseModel):
     user_id: int
     stadium_id: int
-    user: UserOut
+    user: UserResponse
     stadium_name: str
     added_at: datetime
 
@@ -23,7 +23,7 @@ class StadiumAdminResponse(BaseModel):
 class AdminListResponse(BaseModel):
     stadium_id: int
     stadium_name: str
-    admins: List[UserOut]
+    admins: List[UserResponse]
     total_admins: int
 
 
