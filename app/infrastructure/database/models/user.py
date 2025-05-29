@@ -11,6 +11,7 @@ class UserRole(str, enum.Enum):
     CLIENT = "client"
     ADMIN = "admin"
     STADIUM_OWNER = "stadium_owner"
+    SUPER_ADMIN = 'super_admin'
 
 class UserModel(BaseModel):
     __tablename__ = "users"
@@ -31,6 +32,11 @@ class UserModel(BaseModel):
     # Relationships
     owned_stadiums = relationship("StadiumModel", back_populates="owner")
     bookings = relationship("BookingModel", back_populates="user")
+    admin_stadiums = relationship(
+        "StadiumModel",
+        secondary="stadium_admins",
+        back_populates="admins"
+    )
 
 
 # class User(BaseModel):

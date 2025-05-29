@@ -1,4 +1,4 @@
-from datetime import datetime,date
+from datetime import datetime, date
 from decimal import Decimal
 from typing import Union, Optional, List
 
@@ -15,10 +15,12 @@ class WeeklyAvailability(BaseModel):
     booking_count: int
     available_slots: int
 
+
 class StadiumAvailabilityResponse(BaseModel):
     stadium_id: int
     stadium_name: str
     weekly_availability: List[WeeklyAvailability]
+
 
 class StadiumBase(BaseModel):
     name: str
@@ -45,11 +47,16 @@ class StadiumUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     address: Optional[str] = None
-    city: Optional[str] = None
+    district: Optional[str] = None  # Added this missing field
+    latitude: Optional[Decimal] = None
+    longitude: Optional[Decimal] = None
     price_per_hour: Optional[Decimal] = None
-    capacity: Optional[int] = None
     height: Optional[Decimal] = None
     width: Optional[Decimal] = None
+    size: Optional[StadiumSize] = None
+    surface: Optional[SurfaceType] = None
+    amenities: Optional[str] = None  # JSON string
+    images: Optional[str] = None  # JSON string (not List[str])
     opening_hour: Optional[str] = None
     closing_hour: Optional[str] = None
     is_active: Optional[bool] = None
@@ -63,3 +70,18 @@ class StadiumResponse(StadiumBase):
 
     class Config:
         from_attributes = True
+
+
+class HourlyAvailability(BaseModel):
+    hour: str  # "09:00", "10:00", etc.
+    status: AvailabilityStatus  # GREEN or RED only
+    is_available: bool
+
+
+class HourlyAvailabilityResponse(BaseModel):
+    stadium_id: int
+    stadium_name: str
+    date: date
+    hourly_availability: List[HourlyAvailability]
+    total_slots: int
+    available_slots: int

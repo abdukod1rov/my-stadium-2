@@ -8,5 +8,5 @@ from .base import Base
 from .token import Token
 from .profile import ProfileBase, ProfileOut, ProfileCreate
 from .role import RoleBase, RoleOut, RoleEdit, RoleCreate, Role
-from .stadium import StadiumBase, StadiumCreate, UpdateStadium, FacilityCreate
-from .stadium2 import StadiumUpdate,StadiumBase,StadiumCreate,StadiumResponse
+from .stadium2 import (StadiumUpdate,StadiumBase,StadiumCreate,StadiumResponse,
+                       HourlyAvailability, WeeklyAvailability, StadiumAvailabilityResponse)

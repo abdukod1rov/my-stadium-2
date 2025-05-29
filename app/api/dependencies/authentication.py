@@ -1,47 +1,69 @@
 from datetime import timedelta, datetime, timezone
-from typing import Union, Type
 
-from fastapi import HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-from passlib.context import CryptContext
-from starlette import status
-from redis import asyncio
 from app import dto
+from .settings import get_settings
 from .database import dao_provider
 from app.infrastructure.database.dao.holder import HolderDao
 from app.config import Settings
-from ...infrastructure.database.models import UserModel
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='user/token')
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> dto.UserOut:
-    ...
+from fastapi import Depends, HTTPException, status, Header
+from typing import Optional
+
+class PasscodeAuth:
+    """Custom authentication scheme for passcode-based auth"""
+
+    def __init__(self):
+        pass
+
+    async def __call__(self, authorization: Optional[str] = Header(None)) -> str:
+        if not authorization:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authorization header required",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        try:
+            scheme, token = authorization.split()
+            if scheme.lower() != "bearer":
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid authentication scheme",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            return token
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authorization header format",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+
+passcode_auth = PasscodeAuth()
 
 
 class AuthProvider:
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+        # Remove password context since we don't use passwords
         self.secret_key = settings.api.secret
         self.algorithm = 'HS256'
         self.access_token_expires = timedelta(days=3)
-
-    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        return self.pwd_context.verify(plain_password, hashed_password)
-
-    def get_password_hash(self, plain_password: str) -> str:
-        return self.pwd_context.hash(plain_password)
 
     def create_access_token(self, data: dict, expires_delta: timedelta) -> dto.Token:
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + expires_delta
 
         to_encode.update({'exp': expire})
-        encoded_jwt = jwt.encode(claims=to_encode,
-                                 key=self.secret_key,
-                                 algorithm=self.algorithm)
+        encoded_jwt = jwt.encode(
+            claims=to_encode,
+            key=self.secret_key,
+            algorithm=self.algorithm
+        )
         return dto.Token(
             access_token=encoded_jwt,
             token_type='bearer'
@@ -50,44 +72,66 @@ class AuthProvider:
     def create_user_token(self, user: dto.User) -> dto.Token:
         return self.create_access_token(
             data={
-                'sub': user.phone_number,
-                'user_id': user.id
+                'sub': str(user.id),  # Use user ID instead of phone
+                'user_id': user.id,
+                'role': user.role  # Include role in token
             },
             expires_delta=self.access_token_expires
         )
 
-    async def authenticate_user(self,
-                                login_data,
-                                dao: HolderDao) -> Union[dto.User, bool]:
 
-        user = await dao.user.get_user_with_password(user_data=login_data)
-        if not user:
-            return False
-        if not self.verify_password(login_data.password, user.password):
-            return False
 
-        return user
+async def get_current_user(
+        token: str = Depends(passcode_auth),
+        dao: HolderDao = Depends(dao_provider)
+) -> dto.UserOut:
+    """Get current user from JWT token (no password verification needed)"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
-    async def get_current_user(self,
-                               token: str = Depends(oauth2_scheme),
-                               dao: HolderDao = Depends(dao_provider)
-                               ) -> dto.User:
-        credentials_exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
+    try:
+        # Decode JWT token
+        settings = get_settings()  # You might need to inject this
+        auth = AuthProvider(settings)
+
+        payload = jwt.decode(
+            token=token,
+            key=auth.secret_key,
+            algorithms=[auth.algorithm]
         )
 
-        try:
-            payload = jwt.decode(token=token, key=self.secret_key, algorithms=[self.algorithm])
-            phone_number = payload.get('sub')
-            if phone_number is None:
-                raise credentials_exception
-        except JWTError:
+        user_id = payload.get('user_id')
+        if user_id is None:
             raise credentials_exception
-        user = await dao.user.get_user(phone_number)
-        if user is None:
-            raise credentials_exception
-        return user
+
+    except JWTError:
+        raise credentials_exception
+
+    # Get user by ID instead of phone number
+    user = await dao.user.get_user_by_id(user_id)
+    if user is None:
+        raise credentials_exception
+
+    return user
 
 
+async def get_admin_user(
+        current_user: dto.UserOut = Depends(get_current_user)
+) -> dto.UserOut:
+    """Dependency to ensure current user has admin privileges"""
+    if not hasattr(current_user, 'role') or current_user.role != 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    if hasattr(current_user, 'is_active') and not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin account is inactive"
+        )
+
+    return current_user

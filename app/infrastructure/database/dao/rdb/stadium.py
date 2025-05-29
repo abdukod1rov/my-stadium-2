@@ -8,13 +8,16 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dto import StadiumCreate, StadiumUpdate
-from app.dto.stadium2 import StadiumAvailabilityResponse, WeeklyAvailability
+from app.dto.stadium2 import StadiumAvailabilityResponse, WeeklyAvailability, HourlyAvailability, \
+    HourlyAvailabilityResponse
+from app.infrastructure.database.dao.rdb import UserDAO
 from app.infrastructure.database.dao.rdb.base import BaseDAO
-from app.infrastructure.database.models import StadiumModel, BookingModel
+from app.infrastructure.database.models import StadiumModel, BookingModel, UserModel
 from app import dto
 import logging
 
 from app.infrastructure.database.models.booking import BookingStatus, AvailabilityStatus
+from app.infrastructure.database.models.stadium import stadium_admins
 
 logger = logging.getLogger(__name__)
 
@@ -36,12 +39,31 @@ class StadiumDAO(BaseDAO):
             logger.error(f"Failed to create stadium: {e}")
             raise HTTPException(status_code=500, detail="Failed to create stadium")
 
-    async def update(self, stadium_id: int, stadium_data: StadiumUpdate, owner_id: int) -> Optional[StadiumModel]:
+    async def update(self, stadium_id: int, stadium_data: StadiumUpdate, user: UserModel) -> Optional[StadiumModel]:
         try:
-            # Check if stadium exists and belongs to owner
             existing = await self._get_by_id(stadium_id)
-            if not existing or existing.owner_id != owner_id:
-                raise HTTPException(status_code=404, detail="Stadium not found or access denied")
+            if not existing:
+                raise HTTPException(status_code=404, detail="Stadium not found")
+
+            # Check if user is owner, admin of this stadium, or super admin
+            is_owner = existing.owner_id == user.id
+            is_super_admin = user.role == "admin"
+
+            # Check if user is admin of this stadium
+            is_stadium_admin = False
+            if not (is_owner or is_super_admin):
+                admin_check = await self.session.execute(
+                    select(stadium_admins).where(
+                        and_(
+                            stadium_admins.c.user_id == user.id,
+                            stadium_admins.c.stadium_id == stadium_id
+                        )
+                    )
+                )
+                is_stadium_admin = admin_check.fetchone() is not None
+
+            if not (is_owner or is_super_admin or is_stadium_admin):
+                raise HTTPException(status_code=403, detail="Access denied")
 
             update_data = {k: v for k, v in stadium_data.model_dump().items() if v is not None}
             if not update_data:
@@ -128,4 +150,76 @@ class StadiumDAO(BaseDAO):
             )
         except SQLAlchemyError as e:
             logger.error(f"Failed to get weekly availability: {e}")
+            raise HTTPException(status_code=500, detail="Database error occurred")
+
+    async def get_hourly_availability(self, stadium_id: int, target_date: date) -> HourlyAvailabilityResponse:
+        try:
+            stadium = await self._get_by_id(stadium_id)
+            if not stadium:
+                raise HTTPException(status_code=404, detail="Stadium not found")
+
+            # Don't allow checking past dates
+            if target_date < date.today():
+                raise HTTPException(status_code=400, detail="Cannot check availability for past dates")
+
+            # Get all bookings for the target date
+            result = await self.session.execute(
+                select(BookingModel.start_time, BookingModel.end_time)
+                .where(
+                    and_(
+                        BookingModel.stadium_id == stadium_id,
+                        BookingModel.status.in_([BookingStatus.CONFIRMED, BookingStatus.PENDING]),
+                        func.date(BookingModel.start_time) == target_date
+                    )
+                )
+            )
+            bookings = result.fetchall()
+            print("Bookins for the week", bookings)
+
+            # Parse stadium operating hours
+            opening_time = datetime.strptime(stadium.opening_hour, "%H:%M").time()
+            closing_time = datetime.strptime(stadium.closing_hour, "%H:%M").time()
+
+            # Generate hourly slots
+            hourly_data = []
+            current_hour = datetime.combine(target_date, opening_time)
+            end_datetime = datetime.combine(target_date, closing_time)
+
+            while current_hour < end_datetime:
+                slot_end = current_hour + timedelta(hours=1)
+
+                # Check if this hour slot conflicts with any booking
+                is_booked = False
+                for booking in bookings:
+                    booking_start = booking.start_time
+                    booking_end = booking.end_time
+
+                    # Check for overlap: slot overlaps with booking if:
+                    # slot_start < booking_end AND slot_end > booking_start
+                    if current_hour < booking_end and slot_end > booking_start:
+                        is_booked = True
+                        break
+
+                # Determine status: GREEN if available, RED if booked
+                status = AvailabilityStatus.RED if is_booked else AvailabilityStatus.GREEN
+
+                hourly_data.append(HourlyAvailability(
+                    hour=current_hour.strftime("%H:%M"),
+                    status=status,
+                    is_available=not is_booked
+                ))
+
+                current_hour = slot_end
+
+            return HourlyAvailabilityResponse(
+                stadium_id=stadium_id,
+                stadium_name=stadium.name,
+                date=target_date,
+                hourly_availability=hourly_data,
+                total_slots=len(hourly_data),
+                available_slots=sum(1 for slot in hourly_data if slot.is_available)
+            )
+
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to get hourly availability: {e}")
             raise HTTPException(status_code=500, detail="Database error occurred")

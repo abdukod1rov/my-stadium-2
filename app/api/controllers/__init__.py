@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from .user import router as user_router
 from .stadium import stadium_router
+from .admin import router as admin_router
 from .booking import booking_router
 from .auth import router as auth_router
 
@@ -15,10 +16,14 @@ def setup(app: FastAPI) -> None:
         tags=["Users"]
     )
     app.include_router(
-       router=booking_router,
-       tags=["Booking"]
-   )
+        router=booking_router,
+        tags=["Booking"]
+    )
     app.include_router(
         router=stadium_router,
         tags=['Stadium']
+    )
+    app.include_router(
+        router=admin_router,
+        tags=['Admin']
     )

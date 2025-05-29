@@ -1,10 +1,10 @@
 import enum
 
-from app.infrastructure.database.models.base import BaseModel
+from app.infrastructure.database.models.base import BaseModel, Base
 from sqlalchemy.orm import Mapped, mapped_column, validates, relationship, Relationship
 from sqlalchemy import (
     String, TIMESTAMP, Integer, Column, Text, ForeignKey,
-    Float, Enum as SQLEnum, TIME, JSON, DateTime, DECIMAL, Numeric, Boolean,
+    Float, Enum as SQLEnum, TIME, JSON, DateTime, DECIMAL, Numeric, Boolean, Table,
 )
 
 import datetime
@@ -26,6 +26,14 @@ class StadiumSize(str, enum.Enum):
     ELEVEN_V_ELEVEN = "11v11"
 
 
+stadium_admins = Table(
+    "stadium_admins",
+    Base.metadata,
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+    Column("stadium_id", ForeignKey("stadiums.id"), primary_key=True)
+)
+
+
 class StadiumModel(BaseModel):
     __tablename__ = "stadiums"
 
@@ -40,6 +48,7 @@ class StadiumModel(BaseModel):
     height = Column(Numeric(5, 2), nullable=False)  # Stadium height in meters
     width = Column(Numeric(5, 2), nullable=False)
     size = Column(SQLEnum(StadiumSize), nullable=False)
+    rating = Column(Numeric(5, 2), default=0.0)
     surface = Column(SQLEnum(SurfaceType), nullable=False)
     amenities = Column(Text)  # JSON string of amenities
     images = Column(Text)  # JSON string of image URLs
@@ -54,27 +63,9 @@ class StadiumModel(BaseModel):
     # Relationships
     owner = relationship("UserModel", back_populates="owned_stadiums")
     bookings = relationship("BookingModel", back_populates="stadium")
-
-# class Stadium(BaseModel):
-#     __tablename__ = 'stadiums'
-#
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     name = Column(String(80), nullable=False)
-#     owner_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
-#     price_per_hour = Column(DECIMAL, nullable=False)
-#     rating = Column(Float, nullable=True)
-#     description = Column(Text, nullable=True)
-#     time_start = Column(String(80), nullable=False)  # need to change to TIME
-#     time_end = Column(String(80), nullable=False)   # need to change to TIME
-#     size = Column(String(3), nullable=False)
-#     status = Column(String(25), nullable=True)
-#     surface = Column(String(25), nullable=True)
-#     lat = Column(String(100), nullable=True)
-#     long = Column(String(100), nullable=True)
-#     image = Column(String(255), nullable=True)
-#
-#     owner = Relationship('User', back_populates='stadiums')
-#     facilities = Relationship('Facility', secondary='stadium_facilities', passive_deletes=True,
-#                               back_populates='stadiums')
-
+    admins = relationship(
+        "UserModel",
+        secondary="stadium_admins",
+        back_populates="admin_stadiums"
+    )
 

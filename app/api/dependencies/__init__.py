@@ -17,7 +17,7 @@ def setup(app: FastAPI, pool: sessionmaker, settings: Settings) -> None:
     db_provider = DbProvider(pool=pool)
     auth_provider = AuthProvider(settings=settings)
     app.dependency_overrides[dao_provider] = db_provider.dao
-    app.dependency_overrides[get_current_user] = auth_provider.get_current_user
+    # app.dependency_overrides[get_current_user] = auth_provider.get_current_user
     app.dependency_overrides[get_settings] = load_config
     app.mount("/media", StaticFiles(directory="app/media"), name="media")
 

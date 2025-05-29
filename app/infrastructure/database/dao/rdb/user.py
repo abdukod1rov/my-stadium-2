@@ -49,7 +49,6 @@ class UserDAO(BaseDAO[UserModel]):
 
     async def get_user_by_id(self, user_id: int):
         result = await self.session.execute(select(UserModel)
-        .options(joinedload(UserModel.role))
         .options(joinedload(UserModel.owned_stadiums))
         .filter(
             UserModel.id == user_id

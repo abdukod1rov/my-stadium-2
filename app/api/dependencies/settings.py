@@ -1,8 +1,5 @@
 from pathlib import Path
-from os.path import dirname, join
-import os
 from redis import asyncio
-from typing import Union
 from app.config import Settings, load_config
 
 
@@ -18,6 +15,7 @@ async def get_redis_connection() -> asyncio.Redis:
     except asyncio.connection.ConnectionError as err:
         raise Exception(str(err))
     return r
+
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

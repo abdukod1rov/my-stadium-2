@@ -1,10 +1,8 @@
-from typing import Annotated
 
-import aiofiles
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException
 
-from app.api.dependencies import dao_provider, get_settings, AuthProvider, get_current_user
+from app.api.dependencies import dao_provider, get_settings, AuthProvider
+from app.api.dependencies.redis_passcode_manager import RedisPasscodeManager
 from app.dto import UserOut, UserResponse
 from app.infrastructure.database.dao.holder import HolderDao
 from app import dto
@@ -18,7 +16,7 @@ from redis import asyncio as redis_asyncio
 
 # FOR ACTIONS RUNNER
 router = APIRouter(
-    prefix='/auth'
+    prefix='/api/v0/auth'
 )
 
 
@@ -32,27 +30,36 @@ async def login(
         dao: HolderDao = Depends(dao_provider),
         settings: Settings = Depends(get_settings),
 ):
-    """
-    @return:
-    phone_number,
-    first_name|last_name|username
-    """
     auth = AuthProvider(settings=settings)
+    passcode_manager = RedisPasscodeManager(redis_conn)
+
     http_status_401 = HTTPException(
         status_code=401,
-        detail='invalid passcode'
+        detail='Invalid or expired passcode'
     )
-    # Perform a lookup to get the user ID associated with the passcode
-    stored_user_id = await redis_conn.get(str(login_data.passcode))
-    if not stored_user_id:
+
+    # Get user ID by passcode
+    user_id = await passcode_manager.get_user_id_by_passcode(login_data.passcode)
+    if not user_id:
         raise http_status_401
 
-    user = await dao.user.get_user_by_tg_id(int(stored_user_id))
-    if user is not None:
-        token = auth.create_user_token(user)
-        user_out = UserResponse(first_name=user.first_name, last_name=user.last_name, phone_number=user.phone_number,
-                                role=user.role, created_at=user.created_at, is_active=user.is_active, username=user.username,
-                                id=user.id)
-        return {'token': token, 'user': user_out}
+    # Get user from database
+    user = await dao.user.get_user_by_tg_id(user_id)
+    if not user:
+        raise http_status_401
 
-    return http_status_401
+    # Create token
+    token = auth.create_user_token(user)
+    user_out = UserResponse(
+        phone_number=user.phone_number,
+        role=user.role,
+        created_at=user.created_at,
+        is_active=user.is_active,
+        username=user.username,
+        id=user.id
+    )
+
+    # Clean up passcode after successful login (optional)
+    await passcode_manager.cleanup_user_passcode(user_id)
+
+    return {'token': token, 'user': user_out}

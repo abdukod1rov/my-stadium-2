@@ -65,10 +65,6 @@ class UserOut(User):
     username: Union[str, None] = None
     first_name: Union[str, None] = None
     last_name: Union[str, None] = None
-    is_staff: bool
-    is_superuser: bool
-    roles: Union[List[RoleForUser], None] = None
-
 
 class UserWithPassword(User):
     id: int
