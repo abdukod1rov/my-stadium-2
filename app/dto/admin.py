@@ -3,7 +3,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from app.dto import UserOut, UserResponse
+from app.dto import UserOut, UserResponse, StadiumResponse
 from app.dto.stadium import StadiumOut
 
 
@@ -30,5 +30,5 @@ class AdminListResponse(BaseModel):
 class UserStadiumsResponse(BaseModel):
     user_id: int
     user_name: str
-    stadiums: List[StadiumOut]
+    stadiums: List[StadiumResponse]
     total_stadiums: int

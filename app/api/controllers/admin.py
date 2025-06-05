@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, delete, and_
 
 from app.api.dependencies import get_current_user, dao_provider
-from app.dto import UserOut, UserResponse
+from app.dto import UserOut, UserResponse, StadiumResponse
 from app.dto.admin import StadiumAdminResponse, StadiumAdminRequest, AdminListResponse, UserStadiumsResponse
 from app.dto.stadium import StadiumOut
 from app.infrastructure.database.dao.holder import HolderDao
@@ -230,7 +230,7 @@ async def get_user_admin_stadiums(
     return UserStadiumsResponse(
         user_id=user_id,
         user_name=f"{user.first_name} {user.last_name}".strip(),
-        stadiums=[StadiumOut.from_orm(stadium) for stadium in stadiums],
+            stadiums=[StadiumResponse.model_validate(stadium, from_attributes=True) for stadium in stadiums],
         total_stadiums=len(stadiums)
     )
 

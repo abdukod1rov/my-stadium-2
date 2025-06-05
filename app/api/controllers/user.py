@@ -50,7 +50,7 @@ from redis import asyncio as redis_asyncio
 
 # FOR ACTIONS RUNNER
 router = APIRouter(
-    prefix='/user'
+    prefix='/api/v0/users'
 )
 
 @router.post(
@@ -91,9 +91,8 @@ async def create_user(
 async def get_me(
         user: dto.user = Depends(get_current_user),
         dao: HolderDao = Depends(dao_provider)
-):
+) -> dto.UserResponse:
     user = await dao.user.get_user_by_id(user.id)
-    print(user.id)
     return user
 
 

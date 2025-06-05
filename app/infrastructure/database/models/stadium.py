@@ -34,6 +34,21 @@ stadium_admins = Table(
 )
 
 
+class ImageModel(BaseModel):
+    __tablename__ = "images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    url = Column(String(500), nullable=False)  # Direct image URL
+    alt_text = Column(String(255))  # Optional alt text for accessibility
+    stadium_id = Column(Integer, ForeignKey("stadiums.id"), nullable=False)
+    is_primary = Column(Boolean, default=False)  # Mark primary image for stadium
+    created_at = Column(DateTime, default=datetime.datetime.now(datetime.UTC).replace(tzinfo=None))
+    updated_at = Column(DateTime, default=datetime.datetime.now(datetime.UTC).replace(tzinfo=None),
+                        onupdate=datetime.datetime.now(datetime.UTC).replace(tzinfo=None))
+
+    # Relationship
+    stadium = relationship("StadiumModel", back_populates="images")
+
 class StadiumModel(BaseModel):
     __tablename__ = "stadiums"
 
@@ -51,7 +66,6 @@ class StadiumModel(BaseModel):
     rating = Column(Numeric(5, 2), default=0.0)
     surface = Column(SQLEnum(SurfaceType), nullable=False)
     amenities = Column(Text)  # JSON string of amenities
-    images = Column(Text)  # JSON string of image URLs
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     is_active = Column(Boolean, default=True)
     opening_hour = Column(String(5), default="06:00")  # HH:MM format
@@ -68,4 +82,6 @@ class StadiumModel(BaseModel):
         secondary="stadium_admins",
         back_populates="admin_stadiums"
     )
+    images = relationship("ImageModel", back_populates="stadium", cascade="all, delete-orphan")
+
 
